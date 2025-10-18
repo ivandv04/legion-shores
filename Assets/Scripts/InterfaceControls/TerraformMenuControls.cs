@@ -245,8 +245,8 @@ public class TerraformMenuControls : MonoBehaviour
                 terrMap.SetTile(new(x, y), types[terr[x, y]]);
             }
         // set minimap
-        minimap.DrawTerrain(terr);
         minimap.SetCacheNull();
+        minimap.DrawTerrain(terr);
         minimapEth = false;
         generateEthnicsButton.interactable = true;
         toggleEthnicsButton.interactable = false;

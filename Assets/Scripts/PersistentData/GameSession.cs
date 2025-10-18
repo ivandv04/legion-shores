@@ -1,3 +1,4 @@
+using GameplayObjects;
 using PlayerObjects;
 using PoliticalEntities;
 using System;
@@ -8,15 +9,16 @@ using UnityEngine;
 [Serializable]
 public class GameSession
 {
-    private readonly World _world;
+    public readonly World World;
+
+    public readonly UnitWorld UnitMap;
 
     private readonly List<PlayerInstance> _players = new();
 
-    public World GetWorld() => _world;
-
     public GameSession(World world, Realm humanControlled)
     {
-        _world = world;
+        World = world;
+        UnitMap = new(world.GetTerr().GetLength(0));
         foreach (Realm r in world.GetRealms())
             _players.Add(new(r == humanControlled, r));
     }

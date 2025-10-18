@@ -72,7 +72,7 @@ public class GameInterfaceControls : MonoBehaviour
         c.BindTo(mapSize, false);
     }
 
-    private World GetSessionWorld() => StaticGameInstance.Get().GetWorld();
+    private World GetSessionWorld() => StaticGameInstance.Get().World;
 
     private byte[,] Terr() => GetSessionWorld().GetTerr();
 

@@ -367,16 +367,6 @@ namespace GenerationTools
         }
 
         /*
-         * Fills the 'out of bounds' regions on the map such that
-         * the map contained a square-shaped region of filled tiles.
-         * The playable 
-         */
-        public MapConstructor SetBorderRealm()
-        {
-            return null;
-        }
-
-        /*
          * Fills the entire map with the given terrain.
          */
         public MapConstructor SimpleFill(byte fill)
@@ -398,7 +388,7 @@ namespace GenerationTools
          * Floods may be set to decay over each flood and/or cycle. If 
          * floods are set to decay each flood, but not each cycle, then the
          * flood size will reset each cycle. Negative decay rates will lead
-         * to floods increasing over time instead (there is no error checking
+         * to floods increasing over time instead (there is no error checking  
          * for negative decay so be careful).
          * 
          * NOTE that floodOriginBuffer is added in ADDITION to the buffer
@@ -875,7 +865,7 @@ namespace GenerationTools
         }
 
         /*
-         * BREAKS ELEVATION ID - use only after elevation-based algs done.
+         * BREAKS ELEVATION ID - use only after elevation-based algs done.     
          * 
          * Fills in all shorelines with shallows, overriding ocean tiles.
          */
@@ -969,6 +959,174 @@ namespace GenerationTools
                         }
                     }
             }
+            return this;
+        }
+    }
+
+    /// <summary>
+    /// A vastly improved generator class that employs Perlin noise for
+    /// general landscape formation. Additionally contains some more realism
+    /// in river/lake generation and more gameplay-friendly desertification.
+    /// Core differences are as follows:
+    /// - Runs more efficiently
+    /// - More diverse elevation levels during generation
+    /// - Cleaner-looking landmasses for better Ethnics
+    /// - Nicer rivers that always flow from mountains into water bodies
+    /// - More diverse sets and shapes of deserts
+    /// </summary>
+    public class EnhancedConstructor
+    {
+        // Better range of sizes because Perlin noise
+        private const int MIN_SIZE = 64;
+        private const int MAX_SIZE = 512;
+
+        private const int PERM_LEN = 256;
+
+        private static readonly Vector2[] CON_VECS =
+        { new(1f, 1f), new(-1f, 1f), new(-1f, -1f), new(1f, -1f) };
+
+        // We are going to ignore the elevation ids from MapUtil
+        // Instead, have a seperate byte map used prior to actual map painting
+        private readonly byte[,] _elevMap;
+        private readonly byte[,] _terrMap; // uses MapUtil IDs
+
+        private readonly int _size;
+        private readonly int[] _p;
+
+        // Use same delegate system for gen steps
+        public delegate void Construct(EnhancedConstructor constructor);
+
+        public static byte[,] Export(int size, int seed, Construct construct)
+        {
+            EnhancedConstructor c = new(size, seed);
+            construct(c);
+            return c._terrMap;
+        }
+
+        private EnhancedConstructor(int size, int seed)
+        {
+            if (size < MIN_SIZE || size > MAX_SIZE)
+                throw new ArgumentException("EC01: Invalid Size");
+
+            _p = new int[PERM_LEN * 2];
+            for (int i = 0; i < PERM_LEN; i++) _p[i] = i;
+            Randomize(_p, seed);
+            for (int i = 0; i < PERM_LEN; i++) _p[i + PERM_LEN] = _p[i];
+
+            _size = size;
+            _elevMap = new byte[size, size];
+            _terrMap = new byte[size, size];
+        }
+
+        private static void Randomize(int[] array, int seed)
+        {
+            System.Random rng = new(seed);
+            for (int i = array.Length - 1; i > 0; i--)
+            {
+                int sel = (int)Math.Round(rng.NextDouble() * (i - 1));
+                (array[sel], array[i]) = (array[i], array[sel]);
+            }
+        }
+
+        private static float Ease(float t)
+            => ((6 * t - 15) * t + 10) * t * t * t;
+
+        private static float Lerp(float a, float b, float t)
+            => a + t * (b - a);
+
+        private float Noise(float x, float y)
+        {
+            int xi = (int)Math.Floor(x) & 255;
+            int yi = (int)Math.Floor(y) & 255;
+            float xf = x - (float)Math.Floor(x);
+            float yf = y - (float)Math.Floor(y);
+
+            float dNE = Vector2.Dot(
+                new(xf - 1f, yf - 1f),
+                CON_VECS[_p[_p[xi + 1] + yi + 1] & 3]);
+            float dNW = Vector2.Dot(
+                new(xf, yf - 1f),
+                CON_VECS[_p[_p[xi] + yi + 1] & 3]);
+            float dSE = Vector2.Dot(
+                new(xf - 1f, yf),
+                CON_VECS[_p[_p[xi + 1] + yi] & 3]);
+            float dSW = Vector2.Dot(
+                new(xf, yf),
+                CON_VECS[_p[_p[xi] + yi] & 3]);
+
+            return Lerp(
+                Lerp(dSW, dNW, Ease(yf)),
+                Lerp(dSE, dNE, Ease(yf)),
+                Ease(xf));
+        }
+
+        private float FractalBrownian(float x, float y,
+            int octaves, float frequency, float damping)
+        {
+            float result = 0f;
+            float amp = 1f;
+
+            for (int oct = 0; oct < octaves; oct++)
+            {
+                result += amp * Noise(x * frequency, y * frequency);
+                amp *= damping;
+                frequency /= damping;
+            }
+
+            return result;
+        }
+
+        public EnhancedConstructor BuildTopography(
+            int elevationLayers, float genDensity,
+            int fbOctaves, float fbFrequency, float fbDamping)
+        {
+            if (fbOctaves < 1 || fbFrequency < 0f
+                
+                || fbDamping < 0f || fbDamping > 1f)
+                throw new ArgumentException("EC02: Invalid Topography");
+
+            for (int x = 0; x < _size; x++)
+                for (int y = 0; y < _size; y++)
+                {
+                    float val = FractalBrownian(
+                        x * genDensity, y * genDensity,
+                        fbOctaves, fbFrequency, fbDamping);
+
+                    val = (val + 1f) / 2f;
+                    _elevMap[x, y] = (byte)(val * elevationLayers);
+                }
+
+            return this;
+        }
+
+        public EnhancedConstructor BuildTopographySimple()
+            => BuildTopography(9, 1f, 7, 0.005f, 0.5f);
+
+        public EnhancedConstructor RawTerrainConvert()
+        {
+            byte min = 255;
+            byte max = 0;
+
+            for (int i = 0; i < _size; i++)
+                for (int j = 0; j < _size; j++)
+                {
+                    byte val = _elevMap[i, j];
+                    if (val < min) min = val;
+                    if (val > max) max = val;
+                }
+
+            for (int i = 0; i < _size; i++)
+                for (int j = 0; j < _size; j++)
+                {
+                    int b
+                        = (int)((6 * (_elevMap[i, j] - min) / (max - min) )-1);
+
+                    if (b < 0) b = 0;
+                    if (b > 4) b = 4;
+
+                    _terrMap[i, j] = (byte)b;
+                }
+
             return this;
         }
     }
@@ -1245,7 +1403,7 @@ namespace GenerationTools
             string regBase = BaseId(LEN_REG_ID);
             int rootN = 0;
             int refs = 0; // temp
-            // form regions for each ethnic seperately
+                          // form regions for each ethnic seperately
             foreach (string eth in _ethBounds.Keys)
             {
                 // plant 'region roots' in the temp map

@@ -120,32 +120,41 @@ namespace GameplayObjects
         };
     }
 
-    public enum NullUnitType
-    { JAZZ }
-
-    public enum NullUnitClass
-    { STANDARD }
-
-    public class NullUnit : MapUnit<NullUnitType, NullUnitClass>
+    /// <summary>
+    /// A container for placing land and naval units on the map.
+    /// </summary>
+    [Serializable]
+    public class UnitWorld
     {
-        public NullUnit(TroopCard origin)
-            : base(GetType(origin), GetClass(origin)) { }
+        private readonly LandUnit[,] _landUnitMap;
+        private readonly NavalUnit[,] _navalUnitMap;
 
-        private static NullUnitType GetType(TroopCard card) => card switch
-        {
-            // Jazz
-            TroopCard.JAZZ => NullUnitType.JAZZ,
-            // Null
-            _ => throw new Exception("GO05: Null Type"),
-        };
+        private readonly int _l;
 
-        private static NullUnitClass GetClass(TroopCard card) => card switch
+        public UnitWorld(int length)
         {
-            // All
-            TroopCard.JAZZ => NullUnitClass.STANDARD,
-            // Null
-            _ => throw new Exception("GO06: Null Class"),
-        };
+            _landUnitMap = new LandUnit[length, length];
+            _navalUnitMap = new NavalUnit[length, length];
+            _l = length;
+        }
+
+        public void PlaceLandUnit(LandUnit unit, int x, int y)
+        { VerifyBounds(x, y); _landUnitMap[x, y] = unit; }
+
+        public void PlaceNavalUnit(NavalUnit unit, int x, int y)
+        { VerifyBounds(x, y); _navalUnitMap[x, y] = unit; }
+
+        public void RemoveLandUnit(int x, int y)
+        { VerifyBounds(x, y); _landUnitMap[x, y] = null; }
+
+        public void RemoveNavalUnit(int x, int y)
+        { VerifyBounds(x, y); _navalUnitMap[x, y] = null; }
+
+        private void VerifyBounds(int x, int y)
+        {
+            if (x < 0 || y < 0 || x >= _l || y >= _l)
+                throw new Exception("UW01: Bounds not satisfied");
+        }
     }
 
 }

@@ -24,7 +24,7 @@ public class TitleScreenControls : MonoBehaviour
         try
         {
             StaticGameInstance.LoadInstance();
-            StaticTerraform.Bind(StaticGameInstance.Get().GetWorld());
+            StaticTerraform.Bind(StaticGameInstance.Get().World);
             resumingCanvas.gameObject.SetActive(true);
             SceneManager.LoadScene("GameSessionScreen");
         }

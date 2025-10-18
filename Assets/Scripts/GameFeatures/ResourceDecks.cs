@@ -24,8 +24,7 @@ namespace ResourceDecks
         ARCHERY_HEAVY,
         ARTILLERY_LIGHT,
         ARTILLERY_MEDIUM,
-        ARTILLERY_HEAVY,
-        JAZZ
+        ARTILLERY_HEAVY
     }
 
     public enum ShipCard

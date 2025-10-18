@@ -104,7 +104,7 @@ public static class NameGenerators
         if (seed.PerRoll(combWeight))
         {
             if (seed.PerRoll(0.5d)) return SomeElemOf(seed, PART_CCB);
-            else return SomeElemOf(seed, PART_CON) + SomeElemOf(seed, PART_CCB);
+            else return SomeElemOf(seed, PART_CON);
         }
         else return SomeElemOf(seed, PART_CON);
     }
